@@ -1,0 +1,1 @@
+# manifiestos-k8s-repository
