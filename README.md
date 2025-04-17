@@ -1,103 +1,126 @@
-# TP 0311AT – Kubernetes: Casi como en producción  - Iriel Moro
+# TP 0311AT – Kubernetes: Casi como en producción  
+**Autor:** Iriel Moro – ITU UNCuyo – Desarrollo de Software
 
-Este trabajo práctico tiene como objetivo desplegar un sitio web estático dentro de un clúster de Kubernetes local (Minikube), simulando un entorno de producción real.
+---
 
+## Objetivo
 
-## Repositorios utilizados
+Desplegar un sitio web estático dentro de un clúster de Kubernetes local (Minikube), **montando los archivos desde un volumen persistente (hostPath)** y sirviéndolos con Nginx.  
+El objetivo principal es **simular un entorno de producción real sin construir imágenes personalizadas.**
 
-- Este repositorio `manifiestos-k8s-repository` contiene los manifiestos de Kubernetes (deployment y service).
+----
 
-- El repositorio complementario `static-website` contiene el sitio web estático y el `Dockerfile` necesario para construir la imagen:
--> [Repositorio del sitio web estático](https://github.com/irielmoro/static-web)
+## Requisitos previos
 
-
-## Objetivos alcanzados
-- Construcción de una imagen Docker personalizada basada en Nginx
-- Despliegue con Kubernetes utilizando Deployment
-- Exposición del sitio mediante un Service
-- Acceso desde navegador usando port-forward
-- Reemplazo de `hostPath` por una solución portable y profesional con Docker
-
-
-## Requisitos
-- Docker Desktop
+- Git
+- Docker Desktop (con Kubernetes habilitado, si es posible)
 - Minikube
 - kubectl
-- Git Bash o CMD
+- Git Bash o terminal CMD con permisos de administrador
 
+----
 
 ## Estructura del proyecto
-- static-website/: Contiene el sitio web estático (HTML, CSS, assets) 
-- Dockerfile: Dockerfile que construye la imagen
-- deployment.yaml: Manifiesto Kubernetes para el Deployment
-- service.yaml: Manifiesto Kubernetes para el Service
-- README.md: Este archivo
+
+Se utilizan **dos repositorios separados**:
+
+1. [`static-website`](https://github.com/irielmoro/static-web): contiene los archivos del sitio (`index.html`, `style.css`, `assets/`)
+2. [`k8s-manifiestos`](https://github.com/irielmoro/manifiestos-k8s-repository): contiene los manifiestos de Kubernetes (`pv.yaml`, `pvc.yaml`, `deployment.yaml`, `service.yaml`, `README.md`)
 
 ----
 
-## Pasos para ejecutar el proyecto
+## Instrucciones paso a paso
 
-**1. Clonar y construir la imagen del sitio web**
+### 1. Crear una carpeta de trabajo y clonar los repos
 
 ```bash
+mkdir tp-cloud && cd tp-cloud
+
 git clone https://github.com/irielmoro/static-web.git
-cd static-web
-docker build -t static-web:v1 .
-minikube image load static-web:v1 -p tp-cloud
+git clone https://github.com/irielmoro/manifiestos-k8s-repository.git
 ```
 
-**2. Iniciar Minikube**
+### 2. Iniciar Minikube montando el sitio como volumen
+Este paso monta la carpeta del sitio web en el nodo de Minikube, usando hostPath.
 
 ```bash
-minikube start -p tp-cloud --driver=docker --addons=ingress
+minikube start -p tp-cloud --driver=docker --mount --mount-string="C:/ruta/completa/a/static-web:/mnt/web"
 ```
-- Asegurarse de que el perfil tp-cloud esté funcionando correctamente.
-----
+NOTA: Reemplazá C:/ruta/completa/a/static-web por la ruta real donde clonaste el repo.
 
-**3. Clonar este repositorio de manifiestos**
-```bash
-git clone https://github.com/irielmoro/k8s-manifiestos.git
-cd k8s-manifiestos
-```
-----
 
-**4. Aplicar los manifiestos**
+### 3. Aplicar los manifiestos de Kubernetes
+Desde la carpeta manifiestos-k8s-repository, ejecutá:
 
 ```bash
-kubectl apply -f service.yaml
+kubectl apply -f pv.yaml
+kubectl apply -f pvc.yaml
 kubectl apply -f deployment.yaml
+kubectl apply -f service.yaml
 ```
-----
 
-**5. Verificar los recursos**
+### 4. Verificar que todo esté funcionando
 
 ```bash
 kubectl get all
+kubectl get pv,pvc
 ```
-----
+NOTA: 
+- El PVC static-web-pvc debe estar Bound al PV static-web-pv.
+- El pod debe estar en estado Running.
 
-**6. Acceder al sitio web (con port-forward)**
+
+### 5. Verificar que los archivos fueron montados
+
+```bash
+kubectl exec -it deploy/static-web-deployment -- ls /usr/share/nginx/html
+```
+NOTA: Deberías ver: index.html, style.css, assets/
+
+
+### 6. Acceder al sitio web
+Este proyecto expone el sitio web mediante un `Service` de tipo `NodePort`. Según el sistema operativo y la configuración del entorno, hay *dos formas de acceder* al sitio:
+
+# Opción A: `port-forward` (recomendada en Windows)
+Ideal para Windows o cuando usás Minikube con driver Docker. Redirige tráfico local al clúster.
 
 ```bash
 kubectl port-forward service/static-web-service 8080:80
 ```
-- Abrir el navegador y colocar:
+
+Luego abrí en tu navegador:
 
 ```bash
 http://localhost:8080
 ```
+
+# Opción B: Acceso directo vía `NodePort` (Linux/macOS o drivers VM)
+Si tu entorno lo permite (por ejemplo, estás en Linux o usás Minikube con VirtualBox o Hyper-V), podés acceder directamente al puerto publicado:
+
+1. Obtener la IP del nodo:
+
+```bash
+minikube ip -p tp-cloud
+```
+
+2. Abrir en el navegador:
+
+```bash
+http://<IP_DEL_NODO>:30036
+```
+*Ejemplo:*
+Si minikube ip devuelve 192.168.49.2, accedé a: *http://192.168.49.2:30036*
+
+**NOTA:**
+En caso de duda, port-forward funciona siempre, sin importar el sistema operativo.
+
+
+### Resultado esperado
+La web se carga correctamente en el navegador, mostrando el contenido del archivo index.html, servido por Nginx, desde el volumen persistente montado.
+
+
 ----
 
-
-## Aprendizajes
-
-Durante el desarrollo del trabajo enfrenté problemas comunes como errores de conexión (`ERR_CONNECTION_REFUSED`), o el clásico error 403 Forbidden, fallos en el montaje de volúmenes (`hostPath` vacío), complicaciones al descomprimir de manera eficiente el .tar para copiar el sitio web a minikube y conflictos con rutas de archivos en Windows. Esto me permitió:
-
-- Comprender cómo Kubernetes monta volúmenes
-- Comparar distintas estrategias (`hostPath`, `emptyDir`, `initContainer`, imágenes personalizadas)
-- Consolidar el flujo completo: construir imagen → cargar en clúster → desplegar → exponer
-
-----
 
 ## Autor
 
