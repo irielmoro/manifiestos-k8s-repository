@@ -13,7 +13,14 @@ spec:
         app: static-web
     spec:
       containers:
-        - name: nginx
-          image: static-web:v1
-          ports:
-            - containerPort: 80
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: static-content
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: static-content
+        persistentVolumeClaim:
+          claimName: static-web-pvc
