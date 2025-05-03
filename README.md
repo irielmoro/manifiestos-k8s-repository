@@ -24,7 +24,7 @@ El objetivo principal es **simular un entorno de producción real sin construir 
 
 Se utilizan **dos repositorios separados**:
 
-1. [`static-website`](https://github.com/irielmoro/static-web): contiene los archivos del sitio (`index.html`, `style.css`, `assets/`)
+1. [`static-website`](https://github.com/irielmoro/static-website): contiene los archivos del sitio (`index.html`, `style.css`, `assets/`)
 2. [`k8s-manifiestos`](https://github.com/irielmoro/manifiestos-k8s-repository): contiene los manifiestos de Kubernetes (`pv.yaml`, `pvc.yaml`, `deployment.yaml`, `service.yaml`, `README.md`)
 
 ----
@@ -36,7 +36,7 @@ Se utilizan **dos repositorios separados**:
 ```bash
 mkdir tp-cloud && cd tp-cloud
 
-git clone https://github.com/irielmoro/static-web.git
+git clone https://github.com/irielmoro/static-website.git
 git clone https://github.com/irielmoro/manifiestos-k8s-repository.git
 ```
 
@@ -44,9 +44,9 @@ git clone https://github.com/irielmoro/manifiestos-k8s-repository.git
 Este paso monta la carpeta del sitio web en el nodo de Minikube, usando hostPath.
 
 ```bash
-minikube start -p tp-cloud --driver=docker --mount --mount-string="C:/ruta/completa/a/static-web:/mnt/web"
+minikube start -p tp-cloud --driver=docker --mount --mount-string="C:/ruta/completa/a/static-websie:/mnt/web"
 ```
-NOTA: Reemplazá C:/ruta/completa/a/static-web por la ruta real donde clonaste el repo.
+NOTA: Reemplazá C:/ruta/completa/a/static-website por la ruta real donde clonaste el repo.
 
 
 ### 3. Aplicar los manifiestos de Kubernetes
@@ -66,14 +66,14 @@ kubectl get all
 kubectl get pv,pvc
 ```
 NOTA: 
-- El PVC static-web-pvc debe estar Bound al PV static-web-pv.
+- El PVC static-website-pvc debe estar Bound al PV static-website-pv.
 - El pod debe estar en estado Running.
 
 
 ### 5. Verificar que los archivos fueron montados
 
 ```bash
-kubectl exec -it deploy/static-web-deployment -- ls /usr/share/nginx/html
+kubectl exec -it deploy/static-website-deployment -- ls /usr/share/nginx/html
 ```
 NOTA: Deberías ver: index.html, style.css, assets/
 
@@ -85,7 +85,7 @@ Este proyecto expone el sitio web mediante un `Service` de tipo `NodePort`. Seg�
 Ideal para Windows o cuando usás Minikube con driver Docker. Redirige tráfico local al clúster.
 
 ```bash
-kubectl port-forward service/static-web-service 8080:80
+kubectl port-forward service/static-website-service 8080:80
 ```
 
 Luego abrí en tu navegador:
